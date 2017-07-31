@@ -141,7 +141,7 @@
 			#gpio-cells = <2>;
 			reg = <0>;
 			registers-number = <1>;
-			registers-default = /bits/ 8 <0xd7>;
+			registers-default = /bits/ 8 <0x57>;
 			spi-max-frequency = <100000>;
 		};
 	};
@@ -248,6 +248,26 @@
                 clock-names = "mclk";
                 wlf,shared-lrclk;
         };
+
+        ov5640: ov5640@3c {
+                compatible = "ovti,ov5640";
+                reg = <0x3c>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&pinctrl_csi1>;
+                clocks = <&clks IMX6UL_CLK_CSI>;
+                clock-names = "csi_mclk";
+                pwn-gpios = <&gpio_spi 6 1>;
+                rst-gpios = <&gpio_spi 5 0>;
+                csi_id = <0>;
+                mclk = <24000000>;
+                mclk_source = <0>;
+                status = "disabled";
+                port {
+                        ov5640_ep: endpoint {
+                                remote-endpoint = <&csi1_ep>;
+                        };
+                };
+        };
 	/* end add */
 };
 
@@ -256,19 +276,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
-/* add by cym 20170727 */
-	touchscreen: tsc2007@48 {
-		compatible = "ti,tsc2007";
-		reg = <0x48>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_tsc2007>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <1 0>;
-		gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
-		ti,x-plate-ohms = <660>;
-	};
-/* end add */
-
 /* remove by cym 20170707
 	codec: wm8960@1a {
 		compatible = "wlf,wm8960";
@@ -277,7 +284,6 @@
 		clock-names = "mclk";
 		wlf,shared-lrclk;
 	};
-end remove */
 
 	ov5640: ov5640@3c {
 		compatible = "ovti,ov5640";
@@ -298,6 +304,7 @@ end remove */
 			};
 		};
 	};
+*/
 };
 
 &iomuxc {
@@ -389,13 +396,6 @@ end remove */
 			fsl,pins = <
 				MX6UL_PAD_UART5_TX_DATA__I2C2_SCL 0x4001b8b0
 				MX6UL_PAD_UART5_RX_DATA__I2C2_SDA 0x4001b8b0
-			>;
-		};
-
-		/* add by cym 20170727 */
-		pinctrl_tsc2007: tsc2007grp {
-			fsl,pins = <
-				MX6UL_PAD_SNVS_TAMPER1__GPIO5_IO01      0x80000000
 			>;
 		};
 
@@ -579,9 +579,6 @@ end remove */
 		     &pinctrl_lcdif_ctrl>;
 	display = <&display0>;
 	status = "okay";
-
-	gpio_reset = <&gpio5 0 GPIO_ACTIVE_HIGH>;
-	bk_vdd = <&gpio_spi 7 GPIO_ACTIVE_HIGH>;
 
 	display0: display {
 		bits-per-pixel = <16>;

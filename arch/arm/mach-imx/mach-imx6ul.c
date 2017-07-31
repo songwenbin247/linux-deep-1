@@ -50,9 +50,15 @@ static int ksz8081_phy_fixup(struct phy_device *dev)
 }
 
 #define PHY_ID_KSZ8081	0x00221560
+/* add by cym 20170731 */
+#define PHY_ID_KSZ8081RNB61  0x00221561
+/* end add */
 static void __init imx6ul_enet_phy_init(void)
 {
 	phy_register_fixup_for_uid(PHY_ID_KSZ8081, 0xffffffff,	ksz8081_phy_fixup);
+	/* add by cym 20170731 */
+	phy_register_fixup_for_uid(PHY_ID_KSZ8081RNB61, 0xffffffff,  ksz8081_phy_fixup);
+	/* end add */
 }
 
 #define OCOTP_CFG3			0x440

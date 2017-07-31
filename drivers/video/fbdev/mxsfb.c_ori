@@ -1393,26 +1393,6 @@ static int mxsfb_probe(struct platform_device *pdev)
 		}
 	}
 
-/* add by cym 2017026 */
-#if 1
-	gpio = of_get_named_gpio(pdev->dev.of_node, "gpio_reset", 0);
-	if (gpio == -EPROBE_DEFER)
-	{
-		printk("***************************** fun:%s, line = %d()\n", __FUNCTION__, __LINE__);
-		return -EPROBE_DEFER;
-	}
-
-	if (gpio_is_valid(gpio)) {
-                ret = devm_gpio_request_one(&pdev->dev, gpio, GPIOF_OUT_INIT_HIGH, "lcd_reset_en");
-                if (ret) {
-                        dev_err(&pdev->dev, "faild to request gpio %d, ret = %d\n", gpio, ret);
-                        return ret;
-                }
-
-        }
-#endif
-/* end add */
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "Cannot get memory IO resource\n");
