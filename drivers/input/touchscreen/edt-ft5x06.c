@@ -85,9 +85,19 @@ struct edt_reg_addr {
 	int reg_num_y;
 };
 
+struct ft5x0x_event {
+        int touch_point;
+
+        u16 x[10];
+        u16 y[10];
+
+        u16 pressure;
+};
+
 struct edt_ft5x06_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input;
+	struct ft5x0x_event event;
 	u16 num_x;
 	u16 num_y;
 
@@ -165,6 +175,126 @@ static bool edt_ft5x06_ts_check_crc(struct edt_ft5x06_ts_data *tsdata,
 	return true;
 }
 
+#if 1 //cym
+static int ft5x0x_i2c_rxdata(struct i2c_client *this_client, char *rxdata, int length) {
+        int ret;
+        struct i2c_msg msgs[] = {
+                {
+                        .addr   = this_client->addr,
+                        .flags  = 0,
+                        .len    = 1,
+                        .buf    = rxdata,
+                },
+                {
+                        .addr   = this_client->addr,
+                        .flags  = I2C_M_RD,
+                        .len    = length,
+                        .buf    = rxdata,
+                },
+        };
+
+        ret = i2c_transfer(this_client->adapter, msgs, 2);
+        if (ret < 0)
+                pr_err("%s: i2c read error: %d\n", __func__, ret);
+
+        return ret;
+}
+
+static int ft5x0x_read_reg(struct i2c_client *this_client, u8 addr, u8 *pdata) {
+        u8 buf[4] = { 0 };
+        struct i2c_msg msgs[] = {
+                {
+                        .addr   = this_client->addr,
+                        .flags  = 0,
+                        .len    = 1,
+                        .buf    = buf,
+                },
+                {
+                        .addr   = this_client->addr,
+                        .flags  = I2C_M_RD,
+                        .len    = 1,
+                        .buf    = buf,
+                },
+        };
+        int ret;
+
+        buf[0] = addr;
+
+        ret = i2c_transfer(this_client->adapter, msgs, 2);
+        if (ret < 0) {
+                pr_err("read reg (0x%02x) error, %d\n", addr, ret);
+        } else {
+                *pdata = buf[0];
+        }
+
+        return ret;
+}
+
+#define FT5X0X_REG_FIRMID	0xa6
+static int ft5x0x_read_fw_ver(struct edt_ft5x06_ts_data *ts, unsigned char *val)
+{
+        int ret;
+
+        *val = 0xff;
+        ret = ft5x0x_read_reg(ts->client, FT5X0X_REG_FIRMID, val);
+
+        return ret;
+}
+
+static int ft5x0x_read_data(struct edt_ft5x06_ts_data *ts) {
+        struct ft5x0x_event *event = &ts->event;
+        //u8 buf[32] = { 0 };
+        u8 buf[64] = { 0 };
+        int ret;
+
+        ret = ft5x0x_i2c_rxdata(ts->client, buf, 7);
+        if (ret < 0) {
+                printk("%s: read touch data failed, %d\n", __func__, ret);
+                return ret;
+        }
+
+        memset(event, 0, sizeof(struct ft5x0x_event));
+
+        event->touch_point = buf[2] & 0x0F;
+
+        if (!event->touch_point) {
+		input_report_key(ts->input, BTN_TOUCH, 0);
+        	input_report_abs(ts->input, ABS_PRESSURE, 0);
+        	input_sync(ts->input);
+                ;//cym ft5x0x_ts_release(ts);
+                return 1;
+        }
+        //printk("point = %d\n", event->touch_point);
+        if (event->touch_point == 1) {
+                event->x[0] = (s16)(buf[0x03] & 0x0F)<<8 | (s16)buf[0x04];
+                event->y[0] = (s16)(buf[0x05] & 0x0F)<<8 | (s16)buf[0x06];
+        }
+
+        event->pressure = 200;
+
+        return 0;
+}
+
+static void ft5x0x_ts_report(struct edt_ft5x06_ts_data *ts) {
+        struct ft5x0x_event *event = &ts->event;
+        int x, y;
+        int i = 0;
+
+        if (event->touch_point == 1) {
+        	x = event->x[i];
+                y = event->y[i];
+
+		//printk("x = %d, y = %d\n", x, y);
+
+		input_report_key(ts->input, BTN_TOUCH, 1);
+                input_report_abs(ts->input, ABS_X, x);
+                input_report_abs(ts->input, ABS_Y, y);
+                input_report_abs(ts->input, ABS_PRESSURE, event->pressure);
+		input_sync(ts->input);
+        }
+}
+#endif
+
 static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 {
 	struct edt_ft5x06_ts_data *tsdata = dev_id;
@@ -175,80 +305,11 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	int offset, tplen, datalen;
 	int error;
 
-	switch (tsdata->version) {
-	case M06:
-		cmd = 0xf9; /* tell the controller to send touch data */
-		offset = 5; /* where the actual touch data starts */
-		tplen = 4;  /* data comes in so called frames */
-		datalen = 26; /* how much bytes to listen for */
-		break;
+	//printk("************************* fun:%s, line = %d\n", __FUNCTION__, __LINE__);
 
-	case M09:
-		cmd = 0x02;
-		offset = 1;
-		tplen = 6;
-		datalen = 29;
-		break;
-
-	default:
-		goto out;
-	}
-
-	memset(rdbuf, 0, sizeof(rdbuf));
-
-	error = edt_ft5x06_ts_readwrite(tsdata->client,
-					sizeof(cmd), &cmd,
-					datalen, rdbuf);
-	if (error) {
-		dev_err_ratelimited(dev, "Unable to fetch data, error: %d\n",
-				    error);
-		goto out;
-	}
-
-	/* M09 does not send header or CRC */
-	if (tsdata->version == M06) {
-		if (rdbuf[0] != 0xaa || rdbuf[1] != 0xaa ||
-			rdbuf[2] != datalen) {
-			dev_err_ratelimited(dev,
-					"Unexpected header: %02x%02x%02x!\n",
-					rdbuf[0], rdbuf[1], rdbuf[2]);
-			goto out;
-		}
-
-		if (!edt_ft5x06_ts_check_crc(tsdata, rdbuf, datalen))
-			goto out;
-	}
-
-	for (i = 0; i < MAX_SUPPORT_POINTS; i++) {
-		u8 *buf = &rdbuf[i * tplen + offset];
-		bool down;
-
-		type = buf[0] >> 6;
-		/* ignore Reserved events */
-		if (type == TOUCH_EVENT_RESERVED)
-			continue;
-
-		/* M06 sometimes sends bogus coordinates in TOUCH_DOWN */
-		if (tsdata->version == M06 && type == TOUCH_EVENT_DOWN)
-			continue;
-
-		x = ((buf[0] << 8) | buf[1]) & 0x0fff;
-		y = ((buf[2] << 8) | buf[3]) & 0x0fff;
-		id = (buf[2] >> 4) & 0x0f;
-		down = type != TOUCH_EVENT_UP;
-
-		input_mt_slot(tsdata->input, id);
-		input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, down);
-
-		if (!down)
-			continue;
-
-		input_report_abs(tsdata->input, ABS_MT_POSITION_X, x);
-		input_report_abs(tsdata->input, ABS_MT_POSITION_Y, y);
-	}
-
-	input_mt_report_pointer_emulation(tsdata->input, true);
-	input_sync(tsdata->input);
+	if (!ft5x0x_read_data(tsdata)) {
+                ft5x0x_ts_report(tsdata);
+        }
 
 out:
 	return IRQ_HANDLED;
@@ -963,7 +1024,8 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	struct edt_ft5x06_ts_data *tsdata;
 	struct input_dev *input;
 	int error;
-	char fw_version[EDT_NAME_LEN];
+	//char fw_version[EDT_NAME_LEN];
+	unsigned char val;
 
 	dev_dbg(&client->dev, "probing for EDT FT5x06 I2C\n");
 
@@ -1001,22 +1063,28 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		}
 	}
 
-	input = devm_input_allocate_device(&client->dev);
-	if (!input) {
-		dev_err(&client->dev, "failed to allocate input device.\n");
-		return -ENOMEM;
-	}
-
 	mutex_init(&tsdata->mutex);
 	tsdata->client = client;
 	tsdata->input = input;
 	tsdata->factory_mode = false;
 
+	i2c_set_clientdata(client, tsdata);
+
+	input = input_allocate_device();
+        if (!input) {
+                dev_err(&client->dev, "failed to allocate input device.\n");
+                return -ENOMEM;
+        }
+
+	tsdata->input = input;
+
+#if 0
 	error = edt_ft5x06_ts_identify(client, tsdata, fw_version);
 	if (error) {
 		dev_err(&client->dev, "touchscreen probe failed\n");
 		return error;
 	}
+#endif
 
 	edt_ft5x06_ts_set_regs(tsdata);
 
@@ -1027,35 +1095,46 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 
 	edt_ft5x06_ts_get_parameters(tsdata);
 
-	dev_dbg(&client->dev,
-		"Model \"%s\", Rev. \"%s\", %dx%d sensors\n",
-		tsdata->name, fw_version, tsdata->num_x, tsdata->num_y);
+	//dev_dbg(&client->dev,
+	//	"Model \"%s\", Rev. \"%s\", %dx%d sensors\n",
+	//	tsdata->name, fw_version, tsdata->num_x, tsdata->num_y);
 
 	input->name = tsdata->name;
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
-	__set_bit(EV_KEY, input->evbit);
-	__set_bit(EV_ABS, input->evbit);
-	__set_bit(BTN_TOUCH, input->keybit);
-	input_set_abs_params(input, ABS_X, 0, tsdata->num_x * 64 - 1, 0, 0);
-	input_set_abs_params(input, ABS_Y, 0, tsdata->num_y * 64 - 1, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_X,
-			     0, tsdata->num_x * 64 - 1, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_Y,
-			     0, tsdata->num_y * 64 - 1, 0, 0);
+	set_bit(EV_SYN, input->evbit);
+        set_bit(EV_ABS, input->evbit);
+        set_bit(EV_KEY, input->evbit);
+
+	set_bit(ABS_X, input->absbit);
+        set_bit(ABS_Y, input->absbit);
+        set_bit(ABS_PRESSURE, input->absbit);
+        set_bit(BTN_TOUCH, input->keybit);
+
+	input_set_abs_params(input, ABS_X, 0, 800, 0, 0);
+        input_set_abs_params(input, ABS_Y, 0, 1280, 0, 0);
+        input_set_abs_params(input, ABS_PRESSURE, 0, 200, 0, 0);
 
 	if (!pdata)
 		touchscreen_parse_of_params(input);
 
-	error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, 0);
-	if (error) {
-		dev_err(&client->dev, "Unable to init MT slots.\n");
-		return error;
-	}
+	error = input_register_device(input);
+	//error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, 0);
+        if (error) {
+                dev_err(&client->dev, "Unable to init MT slots.\n");
+                return error;
+        }
 
 	input_set_drvdata(input, tsdata);
 	i2c_set_clientdata(client, tsdata);
+
+	error = ft5x0x_read_fw_ver(tsdata, &val);
+	if (error < 0) {
+		dev_err(&client->dev, "chip not found\n");
+		return error;
+	}
+	dev_info(&client->dev, "Firmware version 0x%02x\n", val);
 
 	error = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 					edt_ft5x06_ts_isr,
@@ -1069,10 +1148,6 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	error = sysfs_create_group(&client->dev.kobj, &edt_ft5x06_attr_group);
 	if (error)
 		return error;
-
-	error = input_register_device(input);
-	if (error)
-		goto err_remove_attrs;
 
 	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(&client->dev));
 	device_init_wakeup(&client->dev, 1);

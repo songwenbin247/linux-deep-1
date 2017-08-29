@@ -269,6 +269,18 @@
 	};
 /* end add */
 
+/* add by cym 20170828 */
+	edt_ft5x06@38{
+                        compatible = "edt,edt-ft5x06";
+                        reg = <0x38>;
+                        pinctrl-names = "default";
+                        status = "okay";
+                        pinctrl-0 = <&pinctrl_edt_ft5x06>;
+                        interrupt-parent = <&gpio5>;
+                        interrupts = <1 2>;
+        };
+/* end add */
+
 /* remove by cym 20170707
 	codec: wm8960@1a {
 		compatible = "wlf,wm8960";
@@ -496,6 +508,16 @@ end remove */
 			>;
 		};
 
+		pinctrl_edt_ft5x06: edt_ft5x06grp {
+                                fsl,pins = <
+                                MX6UL_PAD_SNVS_TAMPER1__GPIO5_IO01      0x1b0b0
+                                MX6UL_PAD_GPIO1_IO01__GPIO1_IO01        0xb0
+                                MX6UL_PAD_GPIO1_IO02__GPIO1_IO02        0xb0
+                                MX6UL_PAD_GPIO1_IO03__GPIO1_IO03        0xb0
+                                MX6UL_PAD_GPIO1_IO04__GPIO1_IO04        0xb0
+                                        >;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX6UL_PAD_UART1_TX_DATA__UART1_DCE_TX 0x1b0b1
@@ -589,7 +611,7 @@ end remove */
 
 		display-timings {
 			native-mode = <&timing0>;
-/*
+
 			timing0: timing0 {
 			clock-frequency = <9200000>;
 			hactive = <480>;
@@ -606,7 +628,7 @@ end remove */
 			de-active = <1>;
 			pixelclk-active = <0>;
 			};
-*/
+
 /*
 			timing0: timing0 {
                         clock-frequency = <70000000>;
@@ -625,8 +647,9 @@ end remove */
                         pixelclk-active = <1>;
                         };
 */
+/*
 			timing0: timing0 {
-                        clock-frequency = <50000000>;
+                        clock-frequency = <58000000>;
                         hactive = <800>;
                         vactive = <1280>;
                         hfront-porch = <48>;
@@ -641,6 +664,7 @@ end remove */
                         de-active = <1>;
                         pixelclk-active = <1>;
                         };
+*/
 		};
 	};
 };
