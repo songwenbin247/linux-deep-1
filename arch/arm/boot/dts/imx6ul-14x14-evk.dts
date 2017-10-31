@@ -221,6 +221,7 @@
 	fsl,ldo-bypass = <0>; /* DCDC, ldo-enable */
 };
 
+/* remove by cym 20171031
 &i2c1 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
@@ -240,18 +241,8 @@
 		interrupt-parent = <&gpio5>;
 		interrupts = <0 8>;
 	};
-	/* add by cym 20170707 */
-/*
-	codec: wm8960@1a {
-                compatible = "wlf,wm8960";
-                reg = <0x1a>;
-                clocks = <&clks IMX6UL_CLK_SAI2>;
-                clock-names = "mclk";
-                wlf,shared-lrclk;
-        };
-*/
-	/* end add */
 };
+end remove */
 
 &i2c2 {
 	clock_frequency = <100000>;
@@ -324,7 +315,7 @@
 		pinctrl_hog_1: hoggrp-1 {
 			fsl,pins = <
 				MX6UL_PAD_UART1_RTS_B__GPIO1_IO19	0x17059 /* SD1 CD */
-				MX6UL_PAD_GPIO1_IO05__USDHC1_VSELECT	0x17059 /* SD1 VSELECT */
+				/*MX6UL_PAD_GPIO1_IO05__USDHC1_VSELECT	0x17059*/ /* SD1 VSELECT */
 				MX6UL_PAD_GPIO1_IO09__GPIO1_IO09        0x17059 /* SD1 RESET */
 				MX6UL_PAD_SNVS_TAMPER0__GPIO5_IO00	0x80000000
 			>;
@@ -434,8 +425,8 @@
 				MX6UL_PAD_LCD_DATA13__LCDIF_DATA13  0x79
 				MX6UL_PAD_LCD_DATA14__LCDIF_DATA14  0x79
 				MX6UL_PAD_LCD_DATA15__LCDIF_DATA15  0x79
-				MX6UL_PAD_LCD_DATA16__LCDIF_DATA16  0x79
-				MX6UL_PAD_LCD_DATA17__LCDIF_DATA17  0x79
+				/*MX6UL_PAD_LCD_DATA16__LCDIF_DATA16  0x79
+				MX6UL_PAD_LCD_DATA17__LCDIF_DATA17  0x79*/
 				MX6UL_PAD_LCD_DATA18__LCDIF_DATA18  0x79
 				MX6UL_PAD_LCD_DATA19__LCDIF_DATA19  0x79
 				MX6UL_PAD_LCD_DATA20__LCDIF_DATA20  0x79
@@ -504,6 +495,7 @@
 			>;
 		};
 
+/* remove by cym 20171031
 		pinctrl_tsc: tscgrp {
 			fsl,pins = <
 				MX6UL_PAD_GPIO1_IO01__GPIO1_IO01	0xb0
@@ -512,6 +504,7 @@
 				MX6UL_PAD_GPIO1_IO04__GPIO1_IO04	0xb0
 			>;
 		};
+end remove */
 
 		pinctrl_edt_ft5x06: edt_ft5x06grp {
                                 fsl,pins = <
@@ -519,7 +512,7 @@
                                 MX6UL_PAD_GPIO1_IO01__GPIO1_IO01        0xb0
                                 MX6UL_PAD_GPIO1_IO02__GPIO1_IO02        0xb0
                                 MX6UL_PAD_GPIO1_IO03__GPIO1_IO03        0xb0
-                                MX6UL_PAD_GPIO1_IO04__GPIO1_IO04        0xb0
+                                /*MX6UL_PAD_GPIO1_IO04__GPIO1_IO04        0xb0*/
                                         >;
 		};
 
@@ -539,6 +532,7 @@
 			>;
 		};
 
+		/*
 		pinctrl_uart2dte: uart2dtegrp {
 			fsl,pins = <
 				MX6UL_PAD_UART2_TX_DATA__UART2_DTE_RX	0x1b0b1
@@ -547,6 +541,37 @@
 				MX6UL_PAD_UART3_TX_DATA__UART2_DTE_RTS	0x1b0b1
 			>;
 		};
+		*/
+
+		/* add by cym 20171031 */
+		pinctrl_uart3: uart3grp {
+                        fsl,pins = <
+                                MX6UL_PAD_UART3_TX_DATA__UART3_DCE_TX 0x1b0b1
+                                MX6UL_PAD_UART3_RX_DATA__UART3_DCE_RX 0x1b0b1
+                        >;
+                };
+
+		pinctrl_uart4: uart4grp {
+                        fsl,pins = <
+                                MX6UL_PAD_UART4_TX_DATA__UART4_DCE_TX 0x1b0b1
+                                MX6UL_PAD_UART4_RX_DATA__UART4_DCE_RX 0x1b0b1
+                        >;
+                };
+
+		pinctrl_uart5: uart5grp {
+                        fsl,pins = <
+                                MX6UL_PAD_GPIO1_IO04__UART5_DCE_TX 0x17059
+                                MX6UL_PAD_GPIO1_IO05__UART5_DCE_RX 0x17059
+                        >;
+                };
+
+		pinctrl_uart7: uart7grp {
+                        fsl,pins = <
+                                MX6UL_PAD_LCD_DATA16__UART7_DCE_TX 0x17059
+                                MX6UL_PAD_LCD_DATA17__UART7_DCE_RX 0x17059
+                        >;
+                };
+		/* end add */
 
 		pinctrl_usdhc1: usdhc1grp {
 			fsl,pins = <
@@ -728,6 +753,7 @@
 	status = "okay";
 };
 
+/* remove by cym 20171031
 &tsc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_tsc>;
@@ -736,6 +762,7 @@
 	pre-charge-time = <0xfff>;
 	status = "okay";
 };
+end remove */
 
 &uart1 {
 	pinctrl-names = "default";
@@ -752,6 +779,32 @@
 	/* pinctrl-0 = <&pinctrl_uart2dte>; */
 	status = "okay";
 };
+
+/* add by cym 20171031 */
+&uart3 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_uart3>;
+        status = "okay";
+};
+
+&uart4 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_uart4>;
+        status = "okay";
+};
+
+&uart5 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_uart5>;
+        status = "okay";
+};
+
+&uart7 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_uart7>;
+        status = "okay";
+};
+/* end add */
 
 &usbotg1 {
 	dr_mode = "otg";
