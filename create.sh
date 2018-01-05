@@ -8,6 +8,6 @@ export CROSS_COMPILE=/usr/local/arm/gcc-4.6.2-glibc-2.13-linaro-multilib-2011.12
 
 make imx_v7_defconfig
 
-make uImage LOADADDR=0x10008000
+make uImage LOADADDR=0x10008000 -j4
 
 make imx6ul-14x14-evk.dtb
