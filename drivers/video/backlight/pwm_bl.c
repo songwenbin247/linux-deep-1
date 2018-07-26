@@ -43,6 +43,8 @@ struct pwm_bl_data {
 	void			(*exit)(struct device *);
 };
 
+struct backlight_device *bl_global = NULL;;
+
 static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness)
 {
 	int err;
@@ -323,7 +325,9 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	}
 
 	bl->props.brightness = data->dft_brightness;
-	backlight_update_status(bl);
+	//backlight_update_status(bl);
+
+	bl_global = bl;
 
 	platform_set_drvdata(pdev, bl);
 	return 0;
@@ -393,6 +397,19 @@ static const struct dev_pm_ops pwm_backlight_pm_ops = {
 	.restore = pwm_backlight_resume,
 #endif
 };
+
+void backlight_turn_on(void)
+{
+	if(!bl_global)
+	{
+		printk("************************ fun:%s, line = %d(bl_global is null)\n", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		backlight_update_status(bl_global);
+	}
+}
+EXPORT_SYMBOL(backlight_turn_on);
 
 static struct platform_driver pwm_backlight_driver = {
 	.driver		= {

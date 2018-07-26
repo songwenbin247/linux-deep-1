@@ -1398,7 +1398,6 @@ static int mxsfb_probe(struct platform_device *pdev)
 	gpio = of_get_named_gpio(pdev->dev.of_node, "gpio_reset", 0);
 	if (gpio == -EPROBE_DEFER)
 	{
-		printk("***************************** fun:%s, line = %d()\n", __FUNCTION__, __LINE__);
 		return -EPROBE_DEFER;
 	}
 

@@ -17,6 +17,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
+#include <linux/delay.h>
+
 #define GEN_74X164_NUMBER_GPIOS	8
 
 struct gen_74x164_chip {
@@ -25,6 +27,8 @@ struct gen_74x164_chip {
 	struct mutex		lock;
 	u32			registers;
 };
+
+extern void backlight_turn_on(void);
 
 static struct gen_74x164_chip *gpio_to_74x164_chip(struct gpio_chip *gc)
 {
@@ -156,6 +160,9 @@ static int gen_74x164_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "Failed writing: %d\n", ret);
 		goto exit_destroy;
 	}
+
+	msleep(100);
+	 backlight_turn_on();
 
 	ret = gpiochip_add(&chip->gpio_chip);
 	if (!ret)
