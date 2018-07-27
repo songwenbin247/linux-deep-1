@@ -1119,12 +1119,14 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	if (!pdata)
 		touchscreen_parse_of_params(input);
 
+#if 0
 	error = input_register_device(input);
 	//error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, 0);
         if (error) {
                 dev_err(&client->dev, "Unable to init MT slots.\n");
                 return error;
         }
+#endif
 
 	input_set_drvdata(input, tsdata);
 	i2c_set_clientdata(client, tsdata);
@@ -1135,6 +1137,15 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 	dev_info(&client->dev, "Firmware version 0x%02x\n", val);
+
+#if 1
+	error = input_register_device(input);
+        //error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, 0);
+        if (error) {
+                dev_err(&client->dev, "Unable to init MT slots.\n");
+                return error;
+        }
+#endif
 
 	error = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 					edt_ft5x06_ts_isr,

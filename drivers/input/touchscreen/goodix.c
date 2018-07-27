@@ -27,20 +27,20 @@
 #include <linux/of.h>
 #include <asm/unaligned.h>
 
-struct goodix_ts_data {
-	struct i2c_client *client;
-	struct input_dev *input_dev;
-	int abs_x_max;
-	int abs_y_max;
-	unsigned int max_touch_num;
-	unsigned int int_trigger_type;
-};
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
+#include <linux/input/mt.h>
 
-#define GOODIX_MAX_HEIGHT		4096
-#define GOODIX_MAX_WIDTH		4096
+#include <linux/workqueue.h>
+#include <linux/delay.h>
+#include <linux/export.h>
+
+#define	GOODIX_DEBUG
+#define GOODIX_MAX_HEIGHT		480//4096
+#define GOODIX_MAX_WIDTH		800//4096
 #define GOODIX_INT_TRIGGER		1
-#define GOODIX_CONTACT_SIZE		8
-#define GOODIX_MAX_CONTACTS		10
+#define GOODIX_CONTACT_SIZE		(8)
+#define GOODIX_MAX_CONTACTS		5
 
 #define GOODIX_CONFIG_MAX_LENGTH	240
 
@@ -53,13 +53,32 @@ struct goodix_ts_data {
 #define MAX_CONTACTS_LOC	5
 #define TRIGGER_LOC		6
 
+#define USE_WORK_NOT		0
+#define USE_WORK_DELAY		1
+#define USE_WORK_NORAMAL 	2
+#define USE_WORK	USE_WORK_DELAY
+
+struct goodix_ts_data {
+	struct i2c_client *client;
+	struct input_dev *input_dev;
+	int abs_x_max;
+	int abs_y_max;
+	unsigned int max_touch_num;
+	unsigned int int_trigger_type;
+#if (USE_WORK == USE_WORK_NORAMAL)	
+	struct work_struct work;
+#elif (USE_WORK == USE_WORK_DELAY)
+	struct delayed_work work;
+#endif	
+};
+
 static const unsigned long goodix_irq_flags[] = {
 	IRQ_TYPE_EDGE_RISING,
 	IRQ_TYPE_EDGE_FALLING,
 	IRQ_TYPE_LEVEL_LOW,
 	IRQ_TYPE_LEVEL_HIGH,
 };
-
+static int ts_reset_device(struct i2c_client *client);
 /**
  * goodix_i2c_read - read data from a register of the i2c slave device.
  *
@@ -93,6 +112,7 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 {
 	int touch_num;
 	int error;
+	int finger;
 
 	error = goodix_i2c_read(ts->client, GOODIX_READ_COOR_ADDR, data,
 				GOODIX_CONTACT_SIZE + 1);
@@ -100,8 +120,19 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 		dev_err(&ts->client->dev, "I2C transfer error: %d\n", error);
 		return error;
 	}
+	finger = data[0];
 
-	touch_num = data[0] & 0x0f;
+	if(finger == 0x00) {
+		return -EPROTO;
+	}
+	
+	if((finger & 0x80) == 0) {
+		return -EPROTO;
+	}
+	touch_num = finger & 0x0f;
+
+	dev_dbg(&ts->client->dev, "read data len finger=%d\n", touch_num);
+
 	if (touch_num > ts->max_touch_num)
 		return -EPROTO;
 
@@ -121,17 +152,28 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 
 static void goodix_ts_report_touch(struct goodix_ts_data *ts, u8 *coor_data)
 {
-	int id = coor_data[0] & 0x0F;
-	int input_x = get_unaligned_le16(&coor_data[1]);
-	int input_y = get_unaligned_le16(&coor_data[3]);
-	int input_w = get_unaligned_le16(&coor_data[5]);
-
+	int id = coor_data[1] & 0x0F;
+	int input_x = get_unaligned_le16(&coor_data[2]);
+	int input_y = get_unaligned_le16(&coor_data[4]);
+	int input_w = get_unaligned_le16(&coor_data[6]);
+	
+#if 0
+	dev_dbg(&ts->client->dev, "x=%d,y=%d,w=%d\n",input_x,input_y,input_w);
 	input_mt_slot(ts->input_dev, id);
 	input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
 	input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
 	input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, input_y);
 	input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, input_w);
 	input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
+#else
+	//printk("x=%d,y=%d,w=%d\n",input_y,input_x,input_w);
+	input_report_key(ts->input_dev, BTN_TOUCH, 1);
+	input_report_abs(ts->input_dev, ABS_X, input_y);
+        input_report_abs(ts->input_dev, ABS_Y, input_x);
+        input_report_abs(ts->input_dev, ABS_PRESSURE, 200);
+
+	input_sync(ts->input_dev);
+#endif
 }
 
 /**
@@ -147,18 +189,45 @@ static void goodix_process_events(struct goodix_ts_data *ts)
 	u8  point_data[1 + GOODIX_CONTACT_SIZE * ts->max_touch_num];
 	int touch_num;
 	int i;
-
+	
 	touch_num = goodix_ts_read_input_report(ts, point_data);
-	if (touch_num < 0)
-		return;
+	//if(touch_num) {
+	if(touch_num == 1) {
+		//for (i = 0; i < touch_num; i++)
+		for (i = 0; i < 1; i++)
+			goodix_ts_report_touch(ts,
+					&point_data[GOODIX_CONTACT_SIZE * i]);
 
-	for (i = 0; i < touch_num; i++)
-		goodix_ts_report_touch(ts,
-				&point_data[1 + GOODIX_CONTACT_SIZE * i]);
+		//input_report_key(ts->input_dev, BTN_TOUCH, 1);
+		//input_sync(ts->input_dev);
+	}
+	else
+	{
+		input_report_key(ts->input_dev, BTN_TOUCH, 0);
+        	input_report_abs(ts->input_dev, ABS_PRESSURE, 0);
+        	input_sync(ts->input_dev);
+	}
 
-	input_mt_sync_frame(ts->input_dev);
-	input_sync(ts->input_dev);
+	//input_mt_sync_frame(ts->input_dev);
+	//input_sync(ts->input_dev);
 }
+
+static void goodix_work(struct work_struct *pwork)
+{
+	struct goodix_ts_data *ts = container_of(pwork, struct goodix_ts_data, work);
+	static const u8 end_cmd[] = {
+		GOODIX_READ_COOR_ADDR >> 8,
+		GOODIX_READ_COOR_ADDR & 0xff,
+		0
+	};	
+	goodix_process_events(ts);
+
+	if (i2c_master_send(ts->client, end_cmd, sizeof(end_cmd)) < 0)
+		dev_err(&ts->client->dev, "I2C write end_cmd error\n");
+	enable_irq(ts->client->irq);
+}
+
+
 
 /**
  * goodix_ts_irq_handler - The IRQ handler
@@ -174,11 +243,18 @@ static irqreturn_t goodix_ts_irq_handler(int irq, void *dev_id)
 		0
 	};
 	struct goodix_ts_data *ts = dev_id;
-
+	disable_irq_nosync(irq);
+#if (USE_WORK == USE_WORK_NOT)
 	goodix_process_events(ts);
 
 	if (i2c_master_send(ts->client, end_cmd, sizeof(end_cmd)) < 0)
 		dev_err(&ts->client->dev, "I2C write end_cmd error\n");
+#elif (USE_WORK == USE_WORK_NORAMAL)
+	dev_dbg(&ts->client->dev, "schedule_work\n");
+	schedule_work(&ts->work);
+#elif (USE_WORK == USE_WORK_DELAY)
+	schedule_delayed_work(&ts->work, msecs_to_jiffies(15));
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -220,6 +296,7 @@ static void goodix_read_config(struct goodix_ts_data *ts)
 		ts->abs_y_max = GOODIX_MAX_HEIGHT;
 		ts->max_touch_num = GOODIX_MAX_CONTACTS;
 	}
+	ts->max_touch_num = GOODIX_MAX_CONTACTS;
 }
 
 /**
@@ -264,7 +341,7 @@ static int goodix_i2c_test(struct i2c_client *client)
 		if (!error)
 			return 0;
 
-		dev_err(&client->dev, "i2c test failed attempt %d: %d\n",
+		dev_err(&client->dev, "i2c test failed attempt %d: %d\n",\
 			retry, error);
 		msleep(20);
 	}
@@ -288,10 +365,11 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts)
 		dev_err(&ts->client->dev, "Failed to allocate input device.");
 		return -ENOMEM;
 	}
-
+#if 0
 	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) |
 				  BIT_MASK(EV_KEY) |
 				  BIT_MASK(EV_ABS);
+	ts->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0,
 				ts->abs_x_max, 0, 0);
@@ -302,8 +380,21 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts)
 
 	input_mt_init_slots(ts->input_dev, ts->max_touch_num,
 			    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
+#else
+	set_bit(EV_SYN, ts->input_dev->evbit);
+        set_bit(EV_ABS, ts->input_dev->evbit);
+        set_bit(EV_KEY, ts->input_dev->evbit);
 
-	ts->input_dev->name = "Goodix Capacitive TouchScreen";
+        set_bit(ABS_X, ts->input_dev->absbit);
+        set_bit(ABS_Y, ts->input_dev->absbit);
+        set_bit(ABS_PRESSURE, ts->input_dev->absbit);
+        set_bit(BTN_TOUCH, ts->input_dev->keybit);
+
+        input_set_abs_params(ts->input_dev, ABS_X, 0, 800, 0, 0);
+        input_set_abs_params(ts->input_dev, ABS_Y, 0, 1280, 0, 0);
+        input_set_abs_params(ts->input_dev, ABS_PRESSURE, 0, 200, 0, 0);
+#endif
+	ts->input_dev->name = "Capacitance_ts";//"Goodix Capacitive TouchScreen";
 	ts->input_dev->phys = "input/ts";
 	ts->input_dev->id.bustype = BUS_I2C;
 	ts->input_dev->id.vendor = 0x0416;
@@ -319,6 +410,82 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts)
 
 	return 0;
 }
+
+
+
+/* wake up controller by an falling edge of interrupt gpio.  */
+static int ts_reset_device(struct i2c_client *client)
+{
+	struct device_node *np = client->dev.of_node;
+	int gpio_rst;
+	int gpio_int;
+	int ret,i;
+
+	if (!np)
+		return -ENODEV;
+
+	gpio_rst = of_get_named_gpio(np, "goodix_rst", 0);
+	if (!gpio_is_valid(gpio_rst))
+		return -ENODEV;
+	
+	ret = gpio_request(gpio_rst, "goodix_rst");
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"request gpio failed, cannot wake up controller: %d\n",
+			ret);
+		return ret;
+	}
+	gpio_int = of_get_named_gpio(np, "goodix_int", 0);
+	if (!gpio_is_valid(gpio_int))
+		return -ENODEV;	
+	ret = gpio_request(gpio_int, "goodix_int");
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"request gpio_int failed, cannot wake up controller: %d\n",
+			ret);
+		return ret;
+	}
+#if 0
+	log_msg(LOG_DEBUG,"set io to rst\n");
+	for(i=0;i<500;++i)
+	{
+		gpio_direction_output(gpio_rst,0);
+		msleep(10);
+		gpio_direction_output(gpio_rst,1);
+		msleep(10);
+	}
+	log_msg(LOG_DEBUG,"set io to int\n");
+	for(i=0;i<500;++i)
+	{
+		gpio_direction_output(gpio_int,0);
+		msleep(10);
+		gpio_direction_output(gpio_int,1);
+		msleep(10);
+	}
+#endif	
+
+	/* wake up controller via an falling edge on IRQ gpio. */
+	gpio_direction_output(gpio_rst, 0);
+	mdelay(20);
+	gpio_direction_output(gpio_int, 0);
+	mdelay(2);
+	gpio_set_value(gpio_rst, 1);
+	/* controller should be waken up, return irq.  */
+	mdelay(6);
+	gpio_direction_input(gpio_rst);
+	
+	gpio_direction_output(gpio_int, 1);
+	mdelay(50);
+	gpio_direction_input(gpio_int);
+	//client->irq = gpio_to_irq(gpio_int);
+	
+
+	gpio_free(gpio_rst);
+	//gpio_free(gpio_int);
+
+	return 0;
+}
+char g_ts_name[32]={'\0'};
 
 static int goodix_ts_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
@@ -342,6 +509,11 @@ static int goodix_ts_probe(struct i2c_client *client,
 	ts->client = client;
 	i2c_set_clientdata(client, ts);
 
+	error = ts_reset_device(client);
+	if(error < 0) {
+		return error;
+	}
+	
 	error = goodix_i2c_test(client);
 	if (error) {
 		dev_err(&client->dev, "I2C communication failure: %d\n", error);
@@ -361,13 +533,31 @@ static int goodix_ts_probe(struct i2c_client *client,
 		return error;
 
 	irq_flags = goodix_irq_flags[ts->int_trigger_type] | IRQF_ONESHOT;
-	error = devm_request_threaded_irq(&ts->client->dev, client->irq,
-					  NULL, goodix_ts_irq_handler,
+	dev_dbg(&ts->client->dev, "irq(%d) triggered=%d,flag=0x%x\n",client->irq,ts->int_trigger_type,irq_flags);
+#if (USE_WORK == USE_WORK_NOT)	
+	irq_flags = IRQ_TYPE_EDGE_FALLING | IRQF_ONESHOT;
+	error = devm_request_threaded_irq(&ts->client->dev, client->irq, \
+					  NULL, goodix_ts_irq_handler, \
 					  irq_flags, client->name, ts);
+#elif (USE_WORK == USE_WORK_NORAMAL)
+	irq_flags = IRQ_TYPE_EDGE_FALLING | IRQF_ONESHOT;
+	INIT_WORK(&ts->work, goodix_work);
+	error = request_any_context_irq(client->irq, goodix_ts_irq_handler,\
+						 irq_flags, client->name,ts);
+	//error = devm_request_irq(&ts->client->dev, client->irq, \
+					  goodix_ts_irq_handler, irq_flags, client->name, ts);
+#elif (USE_WORK == USE_WORK_DELAY)
+	irq_flags = IRQ_TYPE_LEVEL_LOW | IRQF_ONESHOT;
+	INIT_DELAYED_WORK(&ts->work, goodix_work);			
+	error = request_any_context_irq(client->irq, goodix_ts_irq_handler,\
+						 irq_flags, client->name,ts);
+#endif
 	if (error) {
 		dev_err(&client->dev, "request IRQ failed: %d\n", error);
 		return error;
 	}
+	dev_dbg(&ts->client->dev, "exit success\n");
+	strcpy(g_ts_name,ts->input_dev->name);
 
 	return 0;
 }

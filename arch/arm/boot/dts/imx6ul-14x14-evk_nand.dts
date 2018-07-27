@@ -274,6 +274,20 @@ end remove */
         };
 /* end add */
 
+/* add by cym 20180726 */
+        gt911@5d {
+                compatible = "goodix,gt911";
+                reg = <0x5d>;
+                interrupt-parent = <&gpio5>;
+                interrupts = <1 0>;
+
+                goodix_rst=<&gpio5 0 0>;
+                goodix_int=<&gpio5 1 0>;
+
+                status = "ok";
+        };
+/* end add *
+
 	codec: wm8960@1a {
 		compatible = "wlf,wm8960";
 		reg = <0x1a>;
