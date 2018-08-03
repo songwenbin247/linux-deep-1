@@ -406,6 +406,7 @@ void backlight_turn_on(void)
 	}
 	else
 	{
+		printk("********************** fun:%s, line = %d **********************\n", __FUNCTION__, __LINE__);
 		backlight_update_status(bl_global);
 	}
 }
