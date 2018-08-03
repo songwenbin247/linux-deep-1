@@ -1368,6 +1368,7 @@ CONFIG_HOSTAP=y
 # CONFIG_MWIFIEX is not set
 # CONFIG_CW1200 is not set
 # CONFIG_RSI_91X is not set
+CONFIG_RTL8723BU=y
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers

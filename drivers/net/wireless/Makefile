@@ -61,3 +61,7 @@ obj-$(CONFIG_BCMDHD)	+= bcmdhd/
 
 obj-$(CONFIG_CW1200)	+= cw1200/
 obj-$(CONFIG_RSI_91X)	+= rsi/
+
+#add by cym 20180803
+obj-$(CONFIG_RTL8723BU) += rtl8723BU/
+#end add

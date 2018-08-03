@@ -285,4 +285,8 @@ source "drivers/net/wireless/mwifiex/Kconfig"
 source "drivers/net/wireless/cw1200/Kconfig"
 source "drivers/net/wireless/rsi/Kconfig"
 
+#add by cym 20180803
+source "drivers/net/wireless/rtl8723BU/Kconfig"
+#end add 
+
 endif # WLAN
