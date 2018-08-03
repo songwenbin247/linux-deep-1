@@ -17,6 +17,5 @@ make imx_v7_defconfig
 
 make uImage LOADADDR=0x10008000 -j4
 
-make imx6ul-14x14-evk.dtb
 make imx6ul-14x14-evk_emmc.dtb
 make imx6ul-14x14-evk_nand.dtb
