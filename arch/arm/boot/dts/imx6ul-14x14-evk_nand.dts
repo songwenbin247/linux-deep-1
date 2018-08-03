@@ -275,7 +275,7 @@ end remove */
 /* end add */
 
 /* add by cym 20180726 */
-        gt911@5d {
+	gt911@5d{
                 	compatible = "goodix,gt911";
                 	reg = <0x5d>;
                 	interrupt-parent = <&gpio5>;
@@ -673,7 +673,7 @@ end remove */
 	display = <&display0>;
 	status = "okay";
 
-	gpio_reset = <&gpio5 0 GPIO_ACTIVE_HIGH>;
+	/*gpio_reset = <&gpio5 0 GPIO_ACTIVE_HIGH>;*/
 	bk_vdd = <&gpio_spi 7 GPIO_ACTIVE_HIGH>;
 
 	display0: display {
