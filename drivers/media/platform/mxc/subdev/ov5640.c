@@ -603,10 +603,17 @@ static const struct i2c_device_id ov5640_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ov5640_id);
 
+static const struct of_device_id ov5640_of_match[] = {
+	{ .compatible = "ovti,ov5640" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ov5640_of_match);
+
 static struct i2c_driver ov5640_i2c_driver = {
 	.driver = {
 		  .owner = THIS_MODULE,
 		  .name  = "ov5640",
+		  .of_match_table = of_match_ptr(ov5640_of_match),
 		  },
 	.probe  = ov5640_probe,
 	.remove = ov5640_remove,
@@ -637,7 +644,7 @@ static const struct ov5640_datafmt
 
 static inline void ov5640_power_down(int enable)
 {
-	gpio_set_value_cansleep(pwn_gpio, enable);
+	gpio_direction_output(pwn_gpio, enable);
 
 	msleep(2);
 }
@@ -645,18 +652,18 @@ static inline void ov5640_power_down(int enable)
 static inline void ov5640_reset(void)
 {
 	/* camera reset */
-	gpio_set_value_cansleep(rst_gpio, 1);
+	gpio_direction_output(rst_gpio, 1);
 
 	/* camera power down */
-	gpio_set_value_cansleep(pwn_gpio, 1);
+	gpio_direction_output(pwn_gpio, 1);
 	msleep(5);
-	gpio_set_value_cansleep(pwn_gpio, 0);
+	gpio_direction_output(pwn_gpio, 0);
 	msleep(5);
-	gpio_set_value_cansleep(rst_gpio, 0);
+	gpio_direction_output(rst_gpio, 0);
 	msleep(1);
-	gpio_set_value_cansleep(rst_gpio, 1);
+	gpio_direction_output(rst_gpio, 1);
 	msleep(5);
-	gpio_set_value_cansleep(pwn_gpio, 1);
+	gpio_direction_output(pwn_gpio, 1);
 }
 
 static int ov5640_regulator_enable(struct device *dev)
