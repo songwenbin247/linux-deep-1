@@ -394,7 +394,7 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts)
         input_set_abs_params(ts->input_dev, ABS_Y, 0, 1280, 0, 0);
         input_set_abs_params(ts->input_dev, ABS_PRESSURE, 0, 200, 0, 0);
 #endif
-	ts->input_dev->name = "Capacitance_ts";//"Goodix Capacitive TouchScreen";
+	ts->input_dev->name = "goodix-gt911";//"Capacitance_ts";//"Goodix Capacitive TouchScreen";
 	ts->input_dev->phys = "input/ts";
 	ts->input_dev->id.bustype = BUS_I2C;
 	ts->input_dev->id.vendor = 0x0416;
