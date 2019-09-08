@@ -100,9 +100,11 @@
 		 * hp-det-polarity = 0: hp detect high for headphone
 		 * hp-det-polarity = 1: hp detect high for speaker
 		 */
-		hp-det = <3 0>;
+		hp-det = <3 1>;
+/*
 		hp-det-gpios = <&gpio5 4 0>;
 		mic-det-gpios = <&gpio5 4 0>;
+*/
 		audio-routing =
 			"Headphone Jack", "HP_L",
 			"Headphone Jack", "HP_R",

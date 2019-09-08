@@ -1628,6 +1628,7 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_VENDOR_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0xff, 0x86, 0x10) },
 
 	{ USB_DEVICE(ZTE_VENDOR_ID, 0x1476)}, /* added by cym for me3630 */
+	{ USB_DEVICE(ZTE_VENDOR_ID, 0x1432)}, /* added by lsb for me3630 */
 
 	{ USB_DEVICE(BENQ_VENDOR_ID, BENQ_PRODUCT_H10) },
 	{ USB_DEVICE(DLINK_VENDOR_ID, DLINK_PRODUCT_DWM_652) },
