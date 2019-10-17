@@ -41,6 +41,7 @@
 #include <soc/imx8/sc/sci.h>
 #include <soc/imx8/sc/svc/irq/api.h>
 #endif
+#include <linux/ipipe.h>
 
 enum mxc_gpio_hwtype {
 	IMX1_GPIO,	/* runs on i.mx1 */
@@ -293,7 +294,7 @@ static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 		if (port->both_edges & (1 << irqoffset))
 			mxc_flip_edge(port, irqoffset);
 
-		generic_handle_irq(irq_find_mapping(port->domain, irqoffset));
+		ipipe_handle_demuxed_irq(irq_find_mapping(port->domain, irqoffset));
 
 		irq_stat &= ~(1 << irqoffset);
 	}
@@ -475,7 +476,7 @@ static int mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base,
 	ct->chip.irq_set_wake = gpio_set_wake_irq;
 	ct->chip.irq_request_resources = mxc_gpio_irq_reqres;
 	ct->chip.irq_release_resources = mxc_gpio_irq_relres,
-	ct->chip.flags = IRQCHIP_MASK_ON_SUSPEND;
+	ct->chip.flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_PIPELINE_SAFE;
 	ct->regs.ack = GPIO_ISR;
 	ct->regs.mask = GPIO_IMR;
 
