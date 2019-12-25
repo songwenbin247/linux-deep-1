@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) i2SOM 2018 - All Rights Reserved
+ * Author: Steve Chen <steve.chen@i2som.tech>.
+ */
+
+/dts-v1/;
+
+#include "stm32mp157a-panguboard-lcd.dts"
+
+&panel_rgb {
+	compatible = "innolux,zj070na-01p";
+};
