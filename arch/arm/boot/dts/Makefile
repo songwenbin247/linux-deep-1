@@ -923,6 +923,7 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32h743i-eval.dtb \
 	stm32h743i-disco.dtb \
 	stm32mp157a-dk1.dtb \
+	stm32mp157a-deepcnc.dtb \
 	stm32mp157c-dk2.dtb \
 	stm32mp157c-dk2-a7-examples.dtb \
 	stm32mp157c-dk2-m4-examples.dtb \
